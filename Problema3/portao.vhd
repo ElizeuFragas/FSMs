@@ -3,7 +3,7 @@ use IEEE.STD_LOGIC_1164.all;
 
 entity portao is
 	port(
-		clk, rst, bt, p		: in  std_logic;
+		clk, rst, bt, p, fc1, fc2		: in  std_logic;
 		s0, s1 : out std_logic;
 		estado : out character
 	);
@@ -11,14 +11,14 @@ end entity;
 
 architecture comportamento of portao is
 	
-	type tipo_estado is (A, B, C);
+	type tipo_estado is (A, B, C, D, E);
 	signal prox_estado, a_estado : tipo_estado;
-	signal cond  : std_logic := '0';
-	signal fc1, fc2  : std_logic;
+	signal cond1, cond2, cond3  : std_logic := '0';
+	
 	
 	begin
 		
-		logica_proximo_estado : process(a_estado, bt, p)
+		logica_proximo_estado : process(a_estado, bt, p, fc1, fc2)
 
 		variable aux, sub : std_logic := '0';
 
@@ -32,37 +32,57 @@ architecture comportamento of portao is
 			end if;
 			
 			case a_estado is
-				-- Estado fechado
+				-- A: Estado fechado
 				when A =>
 				if sub = '0' then
 					prox_estado <= A;
-				elsif sub = '1' and p = '1' then
+				else 
 					prox_estado <= B;
-					fc1 <= '0';
-				else
-					prox_estado <= C;
+					
 				end if;
-				-- Estado parado
+				-- B: Estado abrindo
 				when B => 
 				if p = '1' then
-					prox_estado <= B;
+					prox_estado <= C;
+					cond1 <= '1';
+				elsif sub = '1' then
+					prox_estado <= D;
 				elsif fc1 = '0' then
-					prox_estado <= C;
-					fc1 <= '1';
-				else
-					prox_estado <= A;
-					fc2 <= '1';
-				end if;
-				-- Estado aberto
-				when C =>
-				if sub = '0' then
-					prox_estado <= C;
-				elsif sub = '1' and p = '1' then
 					prox_estado <= B;
-					fc2 <= '0';
+				else
+					prox_estado <= E;
+				end if;
+				-- C: Estado parado
+				when C =>
+				if p = '1' then
+					prox_estado <= C;
+				elsif cond1 = '1' then
+					prox_estado <= B;
+					cond1 <= '0';
+				else
+					prox_estado <= D;
+					cond2 <= '0';
+				end if;
+				-- D: Estado fechando
+				when D =>
+				if p = '1' then
+					prox_estado <= C;
+					cond2 <= '1';
+				elsif sub = '1' then
+					prox_estado <= B;
+				elsif fc2 = '0' then
+					prox_estado <= D;
 				else
 					prox_estado <= A;
 				end if;
+				-- E: Estado aberto
+				when E =>
+				if sub = '0' then
+					prox_estado <= E;
+				else
+					prox_estado <= D;
+				end if;
+
 				
 			end case;
 					
@@ -71,12 +91,12 @@ architecture comportamento of portao is
 	registrador_estado : process(clk, rst)
 	begin
 		
-		if cond = '0' then
+		if cond3 = '0' then
 			a_estado <= A;
-			cond <= '1';
+			cond3 <= '1';
 		elsif rst = '1' then
 			a_estado <= A;
-		elsif falling_edge(clk) then
+		elsif rising_edge(clk) then
 			a_estado <= prox_estado;
 		end if;
 	end process;
@@ -87,7 +107,9 @@ architecture comportamento of portao is
 		case a_estado is
 			when A => s0 <= '0'; s1 <= '0'; estado <= 'A';
 			when B => s0 <= '1'; s1 <= '0'; estado <= 'B';
-			when C => s0 <= '0'; s1 <= '1'; estado <= 'C';
+			when C => s0 <= '0'; s1 <= '0'; estado <= 'C';
+			when D => s0 <= '0'; s1 <= '1'; estado <= 'D';
+			when E => s0 <= '0'; s1 <= '0'; estado <= 'E';
 		end case;
 	end process;
 	
